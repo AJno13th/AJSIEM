@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AJSIEM · Live Operations</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Syne:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/assets/styles.css" />
+</head>
+<body>
+  <div class="atmosphere" aria-hidden="true"></div>
+
+  <header class="top">
+    <div class="brand-block">
+      <div class="brand">AJSIEM</div>
+      <p class="tagline">Live security operations · Kali → Ubuntu → OpenSearch → Graylog</p>
+    </div>
+    <div class="top-meta">
+      <div class="mode-pill" id="modePill" data-mode="demo">
+        <span class="pulse"></span>
+        <span id="modeLabel">DEMO FEED</span>
+      </div>
+      <div class="clock" id="clock">--:--:--Z</div>
+    </div>
+  </header>
+
+  <main class="stage">
+    <section class="hero-strip">
+      <div class="metric" data-sev="total">
+        <div class="metric-label">Events seen</div>
+        <div class="metric-value" id="countTotal">0</div>
+      </div>
+      <div class="metric" data-sev="low">
+        <div class="metric-label">Low</div>
+        <div class="metric-value" id="countLow">0</div>
+      </div>
+      <div class="metric" data-sev="medium">
+        <div class="metric-label">Medium</div>
+        <div class="metric-value" id="countMedium">0</div>
+      </div>
+      <div class="metric" data-sev="high">
+        <div class="metric-label">High</div>
+        <div class="metric-value" id="countHigh">0</div>
+      </div>
+      <div class="throughput">
+        <div class="metric-label">Ingest / tick</div>
+        <canvas id="spark" width="280" height="64" aria-label="Throughput sparkline"></canvas>
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="panel feed-panel">
+        <header class="panel-head">
+          <h2>Live event stream</h2>
+          <span class="hint" id="feedHint">connecting…</span>
+        </header>
+        <ul class="feed" id="feed" aria-live="polite"></ul>
+      </article>
+
+      <aside class="side">
+        <article class="panel">
+          <header class="panel-head">
+            <h2>Severity streams</h2>
+          </header>
+          <ul class="streams" id="streams"></ul>
+        </article>
+
+        <article class="panel">
+          <header class="panel-head">
+            <h2>Collectors</h2>
+          </header>
+          <ul class="inputs" id="inputs"></ul>
+        </article>
+
+        <article class="panel muted-panel">
+          <header class="panel-head">
+            <h2>Pipeline</h2>
+          </header>
+          <ol class="pipeline">
+            <li>Kali ships auth/syslog</li>
+            <li>Graylog inputs on 1514 / 12201 / 5044</li>
+            <li>OpenSearch indexes</li>
+            <li>Streams route Low → High</li>
+          </ol>
+          <p class="footnote" id="uptime">uptime —</p>
+        </article>
+      </aside>
+    </section>
+  </main>
+
+  <script src="/assets/app.js"></script>
+</body>
+</html>

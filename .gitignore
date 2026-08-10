@@ -11,3 +11,4 @@ venv/
 *.log
 .idea/
 .vscode/
+dashboard/.venv/

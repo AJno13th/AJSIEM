@@ -25,7 +25,21 @@ flowchart LR
   Graylog --> MongoDB[(MongoDB)]
   Graylog --> OpenSearch[(OpenSearch)]
   Analyst[Analyst Browser] -->|:9000| Graylog
+  Dashboard[AJSIEM Live Dashboard :8088] -->|API / SSE| Graylog
+  Dashboard -->|demo feed| Analyst
 ```
+
+## Live dashboard
+
+AJSIEM ships a live operations frontend that streams severity counts, collector health, and a scrolling event feed.
+
+```bash
+./scripts/ubuntu/start-dashboard.sh
+# open http://127.0.0.1:8088
+```
+
+- **Demo mode** (default when Graylog is offline): continuously generates Kali-style low / medium / high events so the UI stays alive.
+- **Live mode**: when Graylog is reachable, the dashboard pulls recent messages and flips the badge to `LIVE GRAYLOG`.
 
 ## Quick start (Docker on Ubuntu)
 
@@ -49,13 +63,14 @@ Full steps: [docs/lab-guide.md](docs/lab-guide.md)
 
 ```text
 AJSIEM/
+├── dashboard/                  # Live ops UI (FastAPI + SSE)
 ├── docker-compose.yml          # MongoDB + OpenSearch + Graylog
 ├── configs/
 │   ├── rsyslog/                # Kali → Ubuntu forwarder
 │   ├── filebeat/               # Optional Beats shipper
 │   └── graylog/alerts/         # Low / medium / high alert catalog
 ├── scripts/
-│   ├── ubuntu/                 # Secrets, start stack, bootstrap, bare-metal install
+│   ├── ubuntu/                 # Secrets, stack, dashboard, bootstrap, bare-metal
 │   └── kali/                   # Log forwarding + sample event generator
 └── docs/lab-guide.md
 ```

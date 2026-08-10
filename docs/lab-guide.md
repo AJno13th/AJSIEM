@@ -2,6 +2,15 @@
 
 Hands-on SIEM lab: **Kali Linux** ships logs to **Ubuntu Server** running **MongoDB**, **OpenSearch**, and **Graylog**.
 
+## Live dashboard
+
+```bash
+./scripts/ubuntu/start-dashboard.sh
+# http://127.0.0.1:8088
+```
+
+Uses Graylog when reachable; otherwise streams a demo low/medium/high feed so the UI stays live during lab setup.
+
 ## Architecture
 
 ```text
