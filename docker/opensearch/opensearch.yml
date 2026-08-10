@@ -1,0 +1,5 @@
+cluster.name: ajsiem-opensearch
+network.host: 0.0.0.0
+discovery.type: single-node
+plugins.security.disabled: true
+action.auto_create_index: true

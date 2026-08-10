@@ -1,0 +1,13 @@
+.env
+*.pem
+*.key
+.DS_Store
+__pycache__/
+*.pyc
+data/
+backups/
+.venv/
+venv/
+*.log
+.idea/
+.vscode/

@@ -1,0 +1,92 @@
+# AJSIEM — Graylog + OpenSearch + MongoDB lab stack
+# Target host: Ubuntu Server (bridged network with Kali)
+#
+# Start:  ./scripts/ubuntu/start-stack.sh
+# UI:     http://<ubuntu-ip>:9000  (admin / see GRAYLOG_ROOT_PASSWORD)
+
+services:
+  mongodb:
+    image: mongo:6.0.14
+    container_name: ajsiem-mongodb
+    restart: unless-stopped
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - siem
+
+  opensearch:
+    image: opensearchproject/opensearch:2.11.1
+    container_name: ajsiem-opensearch
+    restart: unless-stopped
+    environment:
+      - cluster.name=ajsiem-opensearch
+      - node.name=ajsiem-node1
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - DISABLE_INSTALL_DEMO_CONFIG=true
+      - DISABLE_SECURITY_PLUGIN=true
+      - OPENSEARCH_JAVA_OPTS=-Xms1g -Xmx1g
+      - OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_INITIAL_ADMIN_PASSWORD:-AjSiemLab_ChangeMe1!}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+      - ./docker/opensearch/opensearch.yml:/usr/share/opensearch/config/opensearch.yml:ro
+    ports:
+      - "9200:9200"
+    networks:
+      - siem
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:9200/_cluster/health || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 20
+
+  graylog:
+    image: graylog/graylog:5.2.6
+    container_name: ajsiem-graylog
+    restart: unless-stopped
+    depends_on:
+      mongodb:
+        condition: service_started
+      opensearch:
+        condition: service_healthy
+    entrypoint: /usr/bin/tini -- wait-for-it opensearch:9200 -- /docker-entrypoint.sh
+    environment:
+      GRAYLOG_PASSWORD_SECRET: ${GRAYLOG_PASSWORD_SECRET:?set GRAYLOG_PASSWORD_SECRET}
+      GRAYLOG_ROOT_PASSWORD_SHA2: ${GRAYLOG_ROOT_PASSWORD_SHA2:?set GRAYLOG_ROOT_PASSWORD_SHA2}
+      GRAYLOG_HTTP_EXTERNAL_URI: ${GRAYLOG_HTTP_EXTERNAL_URI:-http://127.0.0.1:9000/}
+      GRAYLOG_HTTP_BIND_ADDRESS: 0.0.0.0:9000
+      GRAYLOG_ELASTICSEARCH_HOSTS: http://opensearch:9200
+      GRAYLOG_MONGODB_URI: mongodb://mongodb:27017/graylog
+      GRAYLOG_REPORT_DISABLE_SANDBOX: "true"
+      GRAYLOG_TIMEZONE: ${TZ:-UTC}
+    volumes:
+      - graylog_data:/usr/share/graylog/data
+    ports:
+      # Web UI
+      - "9000:9000"
+      # Syslog TCP / UDP
+      - "1514:1514"
+      - "1514:1514/udp"
+      # GELF TCP / UDP (Kali Filebeat / rsyslog-gelf)
+      - "12201:12201"
+      - "12201:12201/udp"
+      # Beats
+      - "5044:5044"
+    networks:
+      - siem
+
+volumes:
+  mongodb_data:
+  opensearch_data:
+  graylog_data:
+
+networks:
+  siem:
+    driver: bridge

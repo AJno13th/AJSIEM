@@ -1,0 +1,27 @@
+filebeat.inputs:
+  - type: log
+    enabled: true
+    paths:
+      - /var/log/auth.log
+      - /var/log/syslog
+      - /var/log/kern.log
+    fields:
+      lab: ajsiem
+      source_role: kali
+    fields_under_root: true
+
+processors:
+  - add_host_metadata: ~
+  - add_fields:
+      target: ""
+      fields:
+        environment: siem-lab
+
+output.elasticsearch:
+  enabled: false
+
+# Graylog Beats input
+output.logstash:
+  hosts: ["__SIEM_SERVER_IP__:5044"]
+
+logging.level: info

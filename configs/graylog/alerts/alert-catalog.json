@@ -1,0 +1,76 @@
+{
+  "name": "AJSIEM Alert Catalog",
+  "description": "Stratified SIEM alerts for Kali → Graylog lab traffic (low / medium / high).",
+  "alerts": [
+    {
+      "id": "low-ssh-success",
+      "title": "[LOW] Successful SSH authentication",
+      "severity": "low",
+      "stream": "AJSIEM Low",
+      "description": "Normal remote access. Track for baseline and account hygiene.",
+      "query": "sshd AND (\"Accepted password\" OR \"Accepted publickey\")",
+      "condition": "more than 0 messages in 5 minutes",
+      "response": "Verify expected users and source IPs; no immediate containment."
+    },
+    {
+      "id": "low-sudo-routine",
+      "title": "[LOW] Privileged command via sudo",
+      "severity": "low",
+      "stream": "AJSIEM Low",
+      "description": "Authorized elevation for routine admin work.",
+      "query": "sudo AND COMMAND= AND NOT \"incorrect password\"",
+      "condition": "more than 3 messages in 10 minutes",
+      "response": "Spot-check COMMAND field against change windows."
+    },
+    {
+      "id": "med-ssh-bruteforce",
+      "title": "[MEDIUM] Repeated SSH authentication failures",
+      "severity": "medium",
+      "stream": "AJSIEM Medium",
+      "description": "Possible password spraying or brute force against Kali/SSH.",
+      "query": "sshd AND (\"Failed password\" OR \"Invalid user\")",
+      "condition": "more than 5 messages in 5 minutes",
+      "response": "Correlate source IPs; consider fail2ban / firewall block; reset targeted accounts."
+    },
+    {
+      "id": "med-new-account",
+      "title": "[MEDIUM] New local user created",
+      "severity": "medium",
+      "stream": "AJSIEM Medium",
+      "description": "Account creation outside change control is suspicious on a lab attacker host.",
+      "query": "useradd OR \"new user:\"",
+      "condition": "more than 0 messages in 15 minutes",
+      "response": "Validate who created the account and whether it was authorized."
+    },
+    {
+      "id": "high-root-login",
+      "title": "[HIGH] Direct root SSH login",
+      "severity": "high",
+      "stream": "AJSIEM High",
+      "description": "Root interactive login is a critical control failure in most environments.",
+      "query": "sshd AND \"Accepted\" AND root",
+      "condition": "more than 0 messages in 1 minute",
+      "response": "Isolate host if unexpected; rotate credentials; review auth logs and sessions."
+    },
+    {
+      "id": "high-scan-activity",
+      "title": "[HIGH] Network scan / reconnaissance indicators",
+      "severity": "high",
+      "stream": "AJSIEM High",
+      "description": "Nmap or SYN-flood style messages indicating active recon or DoS probing.",
+      "query": "nmap OR \"SYN flood\" OR \"port scan\"",
+      "condition": "more than 0 messages in 5 minutes",
+      "response": "Identify scanner source; block at perimeter; capture PCAP if investigating."
+    },
+    {
+      "id": "high-priv-esc",
+      "title": "[HIGH] Privilege escalation failure storm",
+      "severity": "high",
+      "stream": "AJSIEM High",
+      "description": "Repeated failed sudo password attempts often precede or accompany compromise.",
+      "query": "sudo AND \"incorrect password attempts\"",
+      "condition": "more than 0 messages in 5 minutes",
+      "response": "Lock account; inspect processes; check for persistence."
+    }
+  ]
+}
