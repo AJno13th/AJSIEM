@@ -2,8 +2,6 @@
 
 Hands-on SIEM lab: **Kali Linux** ships logs to **Ubuntu Server** running **MongoDB**, **OpenSearch**, and **Graylog**.
 
-Inspired by [Building Your SIEM (Nelson Chukwuemeka-Awuja)](https://nelsonawuja.medium.com/building-your-siem-install-kali-linux-ubuntu-server-and-graylog-like-a-pro-50b8e63dae57).
-
 ## Architecture
 
 ```text

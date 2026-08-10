@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # Bare-metal path (VirtualBox lab) — MongoDB, OpenSearch, Graylog on Ubuntu 22.04.
-# Inspired by: https://nelsonawuja.medium.com/building-your-siem-install-kali-linux-ubuntu-server-and-graylog-like-a-pro-50b8e63dae57
 set -euo pipefail
 
 if [[ "${EUID}" -ne 0 ]]; then

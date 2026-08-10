@@ -9,8 +9,6 @@ This repository packages the end-to-end SIEM workflow described in portfolio for
 - Use OpenSearch to filter/index network and host telemetry, presented through the Graylog web UI
 - Implement a comprehensive alert system stratified from **low → high** to identify and respond to specific network activity
 
-Reference walkthrough (installation series): [Building Your SIEM — Kali, Ubuntu, Graylog](https://nelsonawuja.medium.com/building-your-siem-install-kali-linux-ubuntu-server-and-graylog-like-a-pro-50b8e63dae57)
-
 ## Stack
 
 | Component | Role |
