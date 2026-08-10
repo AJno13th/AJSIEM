@@ -37,7 +37,7 @@ cd AJSIEM
 
 Open `http://<ubuntu-ip>:9000` (user `admin`, password from `.env`).
 
-## Path B — Bare metal (matches the Medium article)
+## Path B — Bare metal on Ubuntu
 
 ```bash
 sudo ./scripts/ubuntu/install-baremetal.sh
