@@ -9,13 +9,22 @@ if [[ ! -f "${ENV_FILE}" ]]; then
   echo "[+] Created ${ENV_FILE} from .env.example"
 fi
 
-SECRET="$(< /dev/urandom tr -dc 'A-Za-z0-9' | head -c 96)"
+# head closes early; ignore SIGPIPE from tr under pipefail
+SECRET="$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 96 || true)"
+if [[ ${#SECRET} -lt 64 ]]; then
+  echo "[!] Failed to generate password_secret"
+  exit 1
+fi
 PASSWORD="${GRAYLOG_ROOT_PASSWORD:-}"
 if [[ -z "${PASSWORD}" ]]; then
   read -r -s -p "Enter Graylog admin password: " PASSWORD
   echo
 fi
-SHA="$(printf '%s' "${PASSWORD}" | sha256sum | awk '{print $1}')"
+if command -v sha256sum >/dev/null 2>&1; then
+  SHA="$(printf '%s' "${PASSWORD}" | sha256sum | awk '{print $1}')"
+else
+  SHA="$(printf '%s' "${PASSWORD}" | shasum -a 256 | awk '{print $1}')"
+fi
 
 # Portable in-place edit
 tmp="$(mktemp)"

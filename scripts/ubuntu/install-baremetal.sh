@@ -46,10 +46,14 @@ apt-get update
 apt-get install -y graylog-server
 
 CONF=/etc/graylog/server/server.conf
-SECRET="$(< /dev/urandom tr -dc 'A-Za-z0-9' | head -c 96)"
+SECRET="$(LC_ALL=C tr -dc 'A-Za-z0-9' </dev/urandom | head -c 96 || true)"
 read -r -s -p "Enter Graylog root password: " ROOT_PASS
 echo
-SHA="$(printf '%s' "${ROOT_PASS}" | sha256sum | awk '{print $1}')"
+if command -v sha256sum >/dev/null 2>&1; then
+  SHA="$(printf '%s' "${ROOT_PASS}" | sha256sum | awk '{print $1}')"
+else
+  SHA="$(printf '%s' "${ROOT_PASS}" | shasum -a 256 | awk '{print $1}')"
+fi
 IP="$(hostname -I | awk '{print $1}')"
 
 sed -i "s|^password_secret =.*|password_secret = ${SECRET}|" "${CONF}"
