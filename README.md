@@ -72,7 +72,7 @@ See `configs/graylog/alerts/alert-catalog.json`.
 
 ## Requirements
 
-- Host with **≥ 8 GB RAM** and **≥ 50 GB** disk for the VM lab (per the original guide)
+- Host with **≥ 8 GB RAM** and **≥ 50 GB** disk for the VM lab
 - VirtualBox (or similar) with **Bridged** networking on both VMs
 - Docker Engine on Ubuntu for Path A, **or** bare-metal packages via `install-baremetal.sh`
 
