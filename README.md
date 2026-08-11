@@ -26,7 +26,7 @@ flowchart LR
   Graylog --> OpenSearch[(OpenSearch)]
   Analyst[Analyst Browser] -->|:9000| Graylog
   Dashboard[AJSIEM Live Dashboard :8088] -->|API / SSE| Graylog
-  Dashboard -->|demo feed| Analyst
+  Dashboard -->|scan + live events| Analyst
 ```
 
 ## Live dashboard
