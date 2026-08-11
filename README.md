@@ -38,7 +38,7 @@ AJSIEM ships a live operations frontend that streams severity counts, **home net
 # open http://127.0.0.1:8088
 ```
 
-- **Demo mode** (default when Graylog is offline): streams sample auth severity events so the UI stays alive. It does **not** invent your home LAN unless `AJSIEM_DEMO=always`.
+- **Real data only**: no synthetic demo events. The feed stays empty until Graylog has messages or you run a home-network scan.
 - **Live mode**: when Graylog is reachable, the dashboard pulls recent messages (including `HOME_NET` / `HOST_DISC`) and flips the badge to `LIVE GRAYLOG`.
 - **Home network panel**: click **Scan home network** (or run the CLI scanner) for real ARP/nmap/`ss` discovery on the LAN the SIEM host is bridged to.
 

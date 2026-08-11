@@ -77,6 +77,11 @@
   }
 
   function renderFeed(events) {
+    if (!events.length) {
+      els.feed.innerHTML = `<li class="empty">No real events yet — waiting for Graylog ingest or a home-network scan</li>`;
+      els.feedHint.textContent = "idle";
+      return;
+    }
     const frag = document.createDocumentFragment();
     let fresh = 0;
     for (const event of events.slice(0, 60)) {
@@ -151,7 +156,7 @@
     els.hostBody.innerHTML = hosts
       .map((h) => {
         const ports = (h.ports || []).length ? (h.ports || []).join(", ") : "—";
-        return `<tr class="flow-row" data-sev="${source === "demo" ? "medium" : "low"}">
+        return `<tr class="flow-row" data-sev="low">
           <td class="mono-tight">${escapeHtml(h.ip)}</td>
           <td>${escapeHtml(h.name || "—")}</td>
           <td class="mono-tight">${escapeHtml(h.mac || "—")}</td>
@@ -218,15 +223,15 @@
   }
 
   function applySnapshot(data) {
-    const mode = data.mode || "demo";
+    const mode = data.mode || "waiting";
     els.modePill.dataset.mode = mode;
-    els.modeLabel.textContent = mode === "live" ? "LIVE GRAYLOG" : "DEMO FEED";
+    els.modeLabel.textContent = mode === "live" ? "LIVE GRAYLOG" : "WAITING";
     els.clock.textContent = fmtTime(data.server_time);
     els.countTotal.textContent = data.counts?.total ?? 0;
     els.countLow.textContent = data.counts?.low ?? 0;
     els.countMedium.textContent = data.counts?.medium ?? 0;
     els.countHigh.textContent = data.counts?.high ?? 0;
-    els.uptime.textContent = `uptime ${formatUptime(data.uptime_s || 0)} · ${data.graylog_ok ? "Graylog reachable" : "Graylog offline — event demo only"}`;
+    els.uptime.textContent = `uptime ${formatUptime(data.uptime_s || 0)} · ${data.graylog_ok ? "Graylog reachable" : "Graylog offline — waiting for real events"}`;
     renderFeed(data.events || []);
     renderStreams(data.streams || [], data.counts || {});
     renderInputs(data.inputs || []);
@@ -254,10 +259,6 @@
       els.scanBtn.textContent = "Re-scan home network";
     } else if (net.source === "graylog") {
       els.netHint.textContent = `from Graylog · ${net.hosts?.length || 0} hosts`;
-      els.scanBtn.disabled = false;
-      els.scanBtn.textContent = "Scan home network";
-    } else if (net.source === "demo") {
-      els.netHint.textContent = "DEMO LAN (not your network) — click Scan";
       els.scanBtn.disabled = false;
       els.scanBtn.textContent = "Scan home network";
     } else if (status === "error") {

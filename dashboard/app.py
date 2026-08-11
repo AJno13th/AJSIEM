@@ -32,10 +32,8 @@ load_dotenv(REPO / ".env")
 GRAYLOG_URL = os.getenv("GRAYLOG_URL", os.getenv("GRAYLOG_HTTP_EXTERNAL_URI", "http://127.0.0.1:9000")).rstrip("/")
 GRAYLOG_USER = os.getenv("GRAYLOG_API_USER", "admin")
 GRAYLOG_PASS = os.getenv("GRAYLOG_ROOT_PASSWORD", "admin")
-FORCE_DEMO = os.getenv("AJSIEM_DEMO", "auto")  # auto | always | never
 POLL_SECONDS = float(os.getenv("AJSIEM_POLL_SECONDS", "2.5"))
 SCAN_CIDR = os.getenv("AJSIEM_SCAN_CIDR") or None
-ALLOW_DEMO_NETWORK = FORCE_DEMO == "always"
 
 STATIC = ROOT / "static"
 
@@ -48,12 +46,12 @@ _flows: deque[dict[str, Any]] = deque(maxlen=120)
 _throughput: deque[dict[str, Any]] = deque(maxlen=60)
 _scan_lock = asyncio.Lock()
 _state = {
-    "mode": "demo",
+    "mode": "waiting",
     "graylog_ok": False,
     "started_at": time.time(),
     "counts": {"low": 0, "medium": 0, "high": 0, "total": 0},
     "network": {
-        "source": "none",  # none | scan | demo | graylog
+        "source": "none",  # none | scan | graylog
         "scan_status": "idle",  # idle | running | error
         "scan_error": "",
         "last_scan": None,
@@ -81,44 +79,6 @@ _state = {
         {"name": "AJSIEM Home Network", "severity": "network", "matches": 0},
     ],
 }
-
-DEMO_TEMPLATES = [
-    ("low", "sshd", "Accepted publickey for kali from 192.168.1.{ip} port {port} ssh2"),
-    ("low", "sudo", "kali : TTY=pts/0 ; PWD=/home/kali ; USER=root ; COMMAND=/usr/bin/apt update"),
-    ("low", "ajsiem", "LOW: routine package metadata refresh"),
-    ("medium", "sshd", "Failed password for invalid user admin from 203.0.113.{ip} port 22 ssh2"),
-    ("medium", "useradd", "new user: name=labattacker, UID=1005, GID=1005"),
-    ("medium", "ajsiem", "MEDIUM: repeated authentication failures observed"),
-    ("high", "sshd", "Accepted password for root from 198.51.100.{ip} port 22 ssh2"),
-    ("high", "kernel", "possible SYN flood on eth0"),
-    ("high", "nmap", "Nmap scan report for 192.168.1.0/24 — host discovery + port scan"),
-    ("high", "sudo", "kali : 3 incorrect password attempts ; USER=root ; COMMAND=/bin/bash"),
-    ("high", "ajsiem", "HIGH: root login + scan activity + privilege escalation attempts"),
-]
-
-HOME_DEVICES = [
-    {"ip": "192.168.1.10", "name": "router-gateway", "role": "gateway"},
-    {"ip": "192.168.1.20", "name": "laptop-aj", "role": "workstation"},
-    {"ip": "192.168.1.24", "name": "iphone-aj", "role": "phone"},
-    {"ip": "192.168.1.36", "name": "smart-tv", "role": "media"},
-    {"ip": "192.168.1.42", "name": "nas-home", "role": "storage"},
-    {"ip": "192.168.1.55", "name": "iot-cam-porch", "role": "iot"},
-    {"ip": "192.168.1.66", "name": "kali-lab", "role": "lab"},
-    {"ip": "192.168.1.80", "name": "tablet-kids", "role": "tablet"},
-]
-
-HOME_DESTS = [
-    {"ip": "8.8.8.8", "port": 53, "proto": "UDP", "dns": "dns.google", "kind": "dns"},
-    {"ip": "1.1.1.1", "port": 53, "proto": "UDP", "dns": "one.one.one.one", "kind": "dns"},
-    {"ip": "142.250.190.14", "port": 443, "proto": "TCP", "dns": "www.google.com", "kind": "web"},
-    {"ip": "151.101.1.140", "port": 443, "proto": "TCP", "dns": "www.reddit.com", "kind": "web"},
-    {"ip": "13.107.42.14", "port": 443, "proto": "TCP", "dns": "www.microsoft.com", "kind": "update"},
-    {"ip": "52.94.236.248", "port": 443, "proto": "TCP", "dns": "aws.amazon.com", "kind": "cloud"},
-    {"ip": "104.16.132.229", "port": 443, "proto": "TCP", "dns": "cdn.cloudflare.net", "kind": "cdn"},
-    {"ip": "23.246.0.1", "port": 443, "proto": "TCP", "dns": "netflix.com", "kind": "stream"},
-    {"ip": "192.168.1.42", "port": 445, "proto": "TCP", "dns": "nas-home.lan", "kind": "lan"},
-    {"ip": "192.168.1.10", "port": 53, "proto": "UDP", "dns": "router.lan", "kind": "dns"},
-]
 
 FLOW_RE = re.compile(
     r"HOME_NET\s+"
@@ -182,13 +142,7 @@ def _is_private(ip: str) -> bool:
     return any(addr in net for net in PRIVATE_NETS) and not addr.is_loopback
 
 
-def _has_real_network() -> bool:
-    return _state["network"]["source"] in ("scan", "graylog") and bool(
-        _state["network"]["hosts"] or _state["network"]["flows_seen"]
-    )
-
-
-def _push_event(severity: str, source: str, message: str, origin: str = "demo"):
+def _push_event(severity: str, source: str, message: str, origin: str = "live"):
     event = {
         "id": f"{int(time.time() * 1000)}-{random.randint(100, 999)}",
         "ts": _now_iso(),
@@ -210,9 +164,6 @@ def _device_name(ip: str) -> str:
     for host in _state["network"]["hosts"]:
         if host.get("ip") == ip and host.get("name"):
             return host["name"]
-    for d in HOME_DEVICES:
-        if d["ip"] == ip:
-            return d["name"]
     return _state["network"]["devices"].get(ip, {}).get("name") or f"host-{ip.split('.')[-1]}"
 
 
@@ -256,7 +207,7 @@ def _push_flow(
     device: str,
     dns: str = "",
     direction: str = "out",
-    origin: str = "demo",
+    origin: str = "live",
     severity: str = "low",
 ):
     flow = {
@@ -295,9 +246,7 @@ def _push_flow(
 
     devices = net["devices"]
     if ip not in devices:
-        role = next((h.get("role") for h in net["hosts"] if h.get("ip") == ip), None)
-        if not role:
-            role = next((d["role"] for d in HOME_DEVICES if d["ip"] == ip), "host")
+        role = next((h.get("role") for h in net["hosts"] if h.get("ip") == ip), None) or "host"
         devices[ip] = {
             "ip": ip,
             "name": device or _device_name(ip),
@@ -482,8 +431,6 @@ def apply_scan_result(result: dict[str, Any], origin: str = "scan") -> dict[str,
 
 
 async def graylog_reachable() -> bool:
-    if FORCE_DEMO == "always":
-        return False
     try:
         async with httpx.AsyncClient(timeout=2.0) as client:
             res = await client.get(
@@ -603,92 +550,6 @@ def classify_severity(text: str) -> str:
     return "low"
 
 
-def demo_network_burst() -> list[dict[str, Any]]:
-    produced = []
-    for _ in range(random.randint(2, 5)):
-        device = random.choice(HOME_DEVICES)
-        if device["role"] == "gateway":
-            continue
-        dest = random.choice(HOME_DESTS)
-        if device["role"] == "iot":
-            dest = random.choice([d for d in HOME_DESTS if d["kind"] in ("dns", "cloud", "cdn")])
-        elif device["role"] == "media":
-            dest = random.choice([d for d in HOME_DESTS if d["kind"] in ("stream", "dns", "cdn")])
-        direction = "lan" if _is_private(dest["ip"]) else "out"
-        nbytes = {
-            "dns": random.randint(64, 512),
-            "web": random.randint(2_000, 80_000),
-            "update": random.randint(50_000, 400_000),
-            "cloud": random.randint(5_000, 120_000),
-            "cdn": random.randint(20_000, 500_000),
-            "stream": random.randint(200_000, 2_500_000),
-            "lan": random.randint(8_000, 900_000),
-        }.get(dest["kind"], random.randint(500, 20_000))
-        if device["role"] == "lab" and random.random() < 0.18:
-            dest = {"ip": "198.51.100.66", "port": 22, "proto": "TCP", "dns": "scan-target.lab", "kind": "scan"}
-            nbytes = random.randint(120, 900)
-            direction = "out"
-        flow = {
-            "src": device["ip"],
-            "dst": dest["ip"],
-            "proto": dest["proto"],
-            "sport": random.randint(1024, 65535),
-            "dport": dest["port"],
-            "bytes": nbytes,
-            "device": device["name"],
-            "dns": dest.get("dns", ""),
-            "direction": direction,
-        }
-        sev = classify_flow_severity(flow)
-        produced.append(
-            _push_flow(
-                src=flow["src"],
-                dst=flow["dst"],
-                proto=flow["proto"],
-                sport=flow["sport"],
-                dport=flow["dport"],
-                nbytes=flow["bytes"],
-                device=flow["device"],
-                dns=flow["dns"],
-                direction=flow["direction"],
-                origin="demo",
-                severity=sev,
-            )
-        )
-    _state["network"]["source"] = "demo"
-    _state["network"]["hosts"] = [
-        {**d, "mac": "", "ports": [], "source": "demo", "state": "up"} for d in HOME_DEVICES
-    ]
-    _state["network"]["subnet"] = "192.168.1.0/24 (demo)"
-    _state["network"]["methods"] = ["demo"]
-    _state["network"]["last_scan"] = _now_iso()
-    _recompute_talkers()
-    return produced
-
-
-def demo_burst(include_network: bool = False) -> list[dict[str, Any]]:
-    produced = []
-    rolls = random.choices(["low", "medium", "high"], weights=[0.55, 0.3, 0.15], k=random.randint(1, 3))
-    for sev in rolls:
-        options = [t for t in DEMO_TEMPLATES if t[0] == sev]
-        severity, source, template = random.choice(options)
-        message = template.format(ip=random.randint(1, 254), port=random.randint(1024, 65535))
-        produced.append(_push_event(severity, source, message, origin="demo"))
-    if include_network and not _has_real_network():
-        produced.extend(demo_network_burst())
-    _state["inputs"] = [
-        {"name": "Syslog TCP", "port": 1514, "status": "up" if ALLOW_DEMO_NETWORK else "unknown"},
-        {"name": "GELF UDP", "port": 12201, "status": "up" if ALLOW_DEMO_NETWORK else "unknown"},
-        {"name": "Beats", "port": 5044, "status": "idle"},
-        {
-            "name": "Home LAN scan",
-            "port": None,
-            "status": "up" if _has_real_network() else ("up" if ALLOW_DEMO_NETWORK else "idle"),
-        },
-    ]
-    return produced
-
-
 def snapshot() -> dict[str, Any]:
     net = _state["network"]
     return {
@@ -746,12 +607,7 @@ async def run_scan(cidr: str | None = None, with_ports: bool = True, with_flows:
 
 @app.on_event("startup")
 async def startup():
-    # Auth/event demo seed only — do NOT invent a fake home LAN unless forced.
-    for _ in range(6):
-        demo_burst(include_network=ALLOW_DEMO_NETWORK)
-    if ALLOW_DEMO_NETWORK:
-        demo_network_burst()
-    _tick_throughput(len(_events))
+    # Real data only — no synthetic auth/network events.
     asyncio.create_task(live_loop())
 
 
@@ -760,7 +616,7 @@ async def live_loop():
         try:
             reachable = await graylog_reachable()
             _state["graylog_ok"] = reachable
-            if reachable and FORCE_DEMO != "always":
+            if reachable:
                 _state["mode"] = "live"
                 fresh_events, fresh_flows, fresh_hosts = await pull_graylog_snapshot()
                 seen = {e["id"] for e in _events}
@@ -811,17 +667,11 @@ async def live_loop():
                     added += 1
                 _tick_throughput(added if added else 0)
             else:
-                _state["mode"] = "demo" if FORCE_DEMO != "never" else "live"
-                if FORCE_DEMO == "never":
-                    _tick_throughput(0)
-                else:
-                    produced = demo_burst(include_network=ALLOW_DEMO_NETWORK and not _has_real_network())
-                    _tick_throughput(len(produced))
+                _state["mode"] = "waiting"
+                _tick_throughput(0)
         except Exception:
-            if not _has_real_network():
-                _state["mode"] = "demo"
-                produced = demo_burst(include_network=ALLOW_DEMO_NETWORK)
-                _tick_throughput(len(produced))
+            _state["mode"] = "waiting"
+            _tick_throughput(0)
         await asyncio.sleep(POLL_SECONDS)
 
 

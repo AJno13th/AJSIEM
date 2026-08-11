@@ -104,7 +104,7 @@ body {
   background: rgba(0,0,0,0.35);
 }
 .mode-pill[data-mode="live"] { border-color: rgba(61, 255, 154, 0.55); color: var(--glow); }
-.mode-pill[data-mode="demo"] { border-color: rgba(240, 194, 75, 0.45); color: var(--warn); }
+.mode-pill[data-mode="waiting"] { border-color: rgba(240, 194, 75, 0.45); color: var(--warn); }
 
 .pulse {
   width: 8px;

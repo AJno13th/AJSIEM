@@ -239,7 +239,8 @@ def test_home_network_scanner():
     check("dashboard has scan button", "Scan home network" in html)
     app_src = (ROOT / "dashboard/app.py").read_text()
     check("dashboard has scan API", '/api/network/scan' in app_src)
-    check("dashboard defaults without fake LAN", "ALLOW_DEMO_NETWORK" in app_src)
+    check("dashboard has no demo burst", "def demo_burst" not in app_src)
+    check("dashboard has no demo templates", "DEMO_TEMPLATES" not in app_src)
 
 
 def test_home_net_parser():

@@ -9,7 +9,7 @@ Hands-on SIEM lab: **Kali Linux** ships logs to **Ubuntu Server** running **Mong
 # http://127.0.0.1:8088
 ```
 
-Uses Graylog when reachable; otherwise streams a demo auth severity feed. The **Home network traffic** panel stays empty until you run a **real LAN scan** (UI button or CLI). Set `AJSIEM_DEMO=always` only if you want a synthetic LAN for screenshots.
+Real data only — no synthetic demo events. The event feed fills from Graylog; the **Home network traffic** panel fills from a **real LAN scan** (UI button or CLI).
 
 ## Architecture
 
@@ -95,7 +95,7 @@ HOME_NET src=192.168.1.20 dst=8.8.8.8 proto=UDP sport=53122 dport=53 bytes=0 dev
 
 - Bootstrap creates stream **AJSIEM Home Network** (matches `HOME_NET` / `HOST_DISC` / `HOME_SCAN`).
 - Dashboard shows discovered hosts, open ports, talkers, and sampled flows.
-- Demo mode no longer pretends to be your home network.
+- No fake/demo LAN inventory is generated.
 
 Authorized / lab use only — only scan networks you own.
 
