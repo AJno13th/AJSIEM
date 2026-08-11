@@ -26,20 +26,21 @@ flowchart LR
   Graylog --> OpenSearch[(OpenSearch)]
   Analyst[Analyst Browser] -->|:9000| Graylog
   Dashboard[AJSIEM Live Dashboard :8088] -->|API / SSE| Graylog
-  Dashboard -->|demo feed| Analyst
+  Dashboard -->|scan + live events| Analyst
 ```
 
 ## Live dashboard
 
-AJSIEM ships a live operations frontend that streams severity counts, collector health, and a scrolling event feed.
+AJSIEM ships a live operations frontend that streams severity counts, **home network traffic**, collector health, and a scrolling event feed.
 
 ```bash
 ./scripts/ubuntu/start-dashboard.sh
 # open http://127.0.0.1:8088
 ```
 
-- **Demo mode** (default when Graylog is offline): continuously generates Kali-style low / medium / high events so the UI stays alive.
-- **Live mode**: when Graylog is reachable, the dashboard pulls recent messages and flips the badge to `LIVE GRAYLOG`.
+- **Real data only**: no synthetic demo events. The feed stays empty until Graylog has messages or you run a home-network scan.
+- **Live mode**: when Graylog is reachable, the dashboard pulls recent messages (including `HOME_NET` / `HOST_DISC`) and flips the badge to `LIVE GRAYLOG`.
+- **Home network panel**: click **Scan home network** (or run the CLI scanner) for real ARP/nmap/`ss` discovery on the LAN the SIEM host is bridged to.
 
 ## Quick start (Docker on Ubuntu)
 
@@ -55,6 +56,16 @@ On Kali (same bridged network):
 ```bash
 sudo ./scripts/kali/setup-log-forwarding.sh <ubuntu-ip>
 ./scripts/kali/generate-lab-events.sh
+# Real home-LAN discovery → dashboard + syslog
+sudo ./scripts/kali/scan-home-network.sh --post http://<ubuntu-ip>:8088
+```
+
+Or from the Ubuntu SIEM host / dashboard UI:
+
+```bash
+./scripts/ubuntu/start-dashboard.sh
+# open http://127.0.0.1:8088 → Scan home network
+sudo ./scripts/ubuntu/scan-home-network.sh
 ```
 
 Full steps: [docs/lab-guide.md](docs/lab-guide.md)
@@ -81,7 +92,8 @@ AJSIEM/
 |-------|--------|
 | **Low** | Baseline successful auth / routine sudo |
 | **Medium** | Brute-force style failures, new accounts |
-| **High** | Root login, scan indicators, priv-esc storms |
+| **High** | Root login, scan indicators, priv-esc storms, SSH egress from home LAN |
+| **Home Network** | DNS baseline, SMB/SSH egress from LAN devices (`HOME_NET` flows) |
 
 See `configs/graylog/alerts/alert-catalog.json`.
 
