@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
-# Emit structured HOME_NET flow logs for home-LAN traffic visibility in AJSIEM.
-# Forwards via local syslog when rsyslog/Filebeat is configured to Graylog.
+# Emit *sample* HOME_NET flow logs for alert/stream testing (synthetic).
+# For real LAN discovery use: ./scripts/kali/scan-home-network.sh
 set -euo pipefail
 
-echo "[*] Emitting home network traffic samples (HOME_NET flows → SIEM)"
+echo "[*] Emitting synthetic HOME_NET samples (for alerts — not a live LAN scan)"
+echo "    For a real scan: sudo ./scripts/kali/scan-home-network.sh"
 
 emit() {
   # $1 message body

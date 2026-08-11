@@ -38,9 +38,9 @@ AJSIEM ships a live operations frontend that streams severity counts, **home net
 # open http://127.0.0.1:8088
 ```
 
-- **Demo mode** (default when Graylog is offline): continuously generates Kali-style low / medium / high events **and home LAN flows** so the UI stays alive.
-- **Live mode**: when Graylog is reachable, the dashboard pulls recent messages (including `HOME_NET` flows) and flips the badge to `LIVE GRAYLOG`.
-- **Home network panel**: live flows, top talkers, protocol mix, and byte totals for the `192.168.1.0/24` lab segment.
+- **Demo mode** (default when Graylog is offline): streams sample auth severity events so the UI stays alive. It does **not** invent your home LAN unless `AJSIEM_DEMO=always`.
+- **Live mode**: when Graylog is reachable, the dashboard pulls recent messages (including `HOME_NET` / `HOST_DISC`) and flips the badge to `LIVE GRAYLOG`.
+- **Home network panel**: click **Scan home network** (or run the CLI scanner) for real ARP/nmap/`ss` discovery on the LAN the SIEM host is bridged to.
 
 ## Quick start (Docker on Ubuntu)
 
@@ -56,7 +56,16 @@ On Kali (same bridged network):
 ```bash
 sudo ./scripts/kali/setup-log-forwarding.sh <ubuntu-ip>
 ./scripts/kali/generate-lab-events.sh
-./scripts/kali/generate-home-traffic.sh   # home LAN flow visibility
+# Real home-LAN discovery → dashboard + syslog
+sudo ./scripts/kali/scan-home-network.sh --post http://<ubuntu-ip>:8088
+```
+
+Or from the Ubuntu SIEM host / dashboard UI:
+
+```bash
+./scripts/ubuntu/start-dashboard.sh
+# open http://127.0.0.1:8088 → Scan home network
+sudo ./scripts/ubuntu/scan-home-network.sh
 ```
 
 Full steps: [docs/lab-guide.md](docs/lab-guide.md)

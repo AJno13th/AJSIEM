@@ -181,9 +181,11 @@ def main():
     )
     ensure_stream(
         "AJSIEM Home Network",
-        "Home LAN flow telemetry (HOME_NET structured logs)",
+        "Home LAN flow telemetry (HOME_NET / HOST_DISC / HOME_SCAN)",
         [
             {"field": "message", "type": 6, "inverted": False, "value": "HOME_NET"},
+            {"field": "message", "type": 6, "inverted": False, "value": "HOST_DISC"},
+            {"field": "message", "type": 6, "inverted": False, "value": "HOME_SCAN"},
             {"field": "message", "type": 6, "inverted": False, "value": "homenet"},
         ],
     )

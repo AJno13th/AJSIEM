@@ -21,11 +21,15 @@
     netBytesIn: $("netBytesIn"),
     protoBars: $("protoBars"),
     flowBody: $("flowBody"),
+    hostBody: $("hostBody"),
     talkers: $("talkers"),
     netHint: $("netHint"),
+    subnetHint: $("subnetHint"),
+    scanBtn: $("scanBtn"),
   };
 
   let seen = new Set();
+  let scanning = false;
   const sparkCtx = els.spark.getContext("2d");
 
   function fmtTime(iso) {
@@ -139,9 +143,32 @@
       .join("");
   }
 
-  function renderFlows(flows) {
+  function renderHosts(hosts, source) {
+    if (!hosts.length) {
+      els.hostBody.innerHTML = `<tr><td colspan="6" class="empty">No LAN hosts yet — click <strong>Scan home network</strong> (run the dashboard on a host bridged to your LAN)</td></tr>`;
+      return;
+    }
+    els.hostBody.innerHTML = hosts
+      .map((h) => {
+        const ports = (h.ports || []).length ? (h.ports || []).join(", ") : "—";
+        return `<tr class="flow-row" data-sev="${source === "demo" ? "medium" : "low"}">
+          <td class="mono-tight">${escapeHtml(h.ip)}</td>
+          <td>${escapeHtml(h.name || "—")}</td>
+          <td class="mono-tight">${escapeHtml(h.mac || "—")}</td>
+          <td>${escapeHtml(h.role || "host")}</td>
+          <td>${escapeHtml(ports)}</td>
+          <td>${escapeHtml(h.source || source || "—")}</td>
+        </tr>`;
+      })
+      .join("");
+  }
+
+  function renderFlows(flows, source) {
     if (!flows.length) {
-      els.flowBody.innerHTML = `<tr><td colspan="7" class="empty">No home network flows yet — run generate-home-traffic.sh or use demo mode</td></tr>`;
+      const tip = source === "none"
+        ? "No flows yet — scan the LAN to sample sockets via ss, or ship HOME_NET logs"
+        : "No active flows sampled on this host — hosts above still reflect discovery";
+      els.flowBody.innerHTML = `<tr><td colspan="7" class="empty">${tip}</td></tr>`;
       return;
     }
     els.flowBody.innerHTML = flows
@@ -199,7 +226,7 @@
     els.countLow.textContent = data.counts?.low ?? 0;
     els.countMedium.textContent = data.counts?.medium ?? 0;
     els.countHigh.textContent = data.counts?.high ?? 0;
-    els.uptime.textContent = `uptime ${formatUptime(data.uptime_s || 0)} · ${data.graylog_ok ? "Graylog reachable" : "Graylog offline — demo mode"}`;
+    els.uptime.textContent = `uptime ${formatUptime(data.uptime_s || 0)} · ${data.graylog_ok ? "Graylog reachable" : "Graylog offline — event demo only"}`;
     renderFeed(data.events || []);
     renderStreams(data.streams || [], data.counts || {});
     renderInputs(data.inputs || []);
@@ -211,11 +238,37 @@
     els.netBytesOut.textContent = fmtBytes(net.bytes_out);
     els.netBytesIn.textContent = fmtBytes(net.bytes_in);
     renderProtocols(net.protocols || {});
-    renderFlows(net.flows || []);
+    renderHosts(net.hosts || [], net.source || "none");
+    renderFlows(net.flows || [], net.source || "none");
     renderTalkers(net.top_talkers || []);
-    els.netHint.textContent = mode === "live"
-      ? `${net.flows?.length || 0} recent flows · live`
-      : `${net.flows?.length || 0} recent flows · demo LAN`;
+    els.subnetHint.textContent = net.subnet ? `· ${net.subnet}` : "";
+
+    const status = net.scan_status || "idle";
+    if (status === "running" || scanning) {
+      els.netHint.textContent = "scanning LAN…";
+      els.scanBtn.disabled = true;
+      els.scanBtn.textContent = "Scanning…";
+    } else if (net.source === "scan") {
+      els.netHint.textContent = `real scan · ${net.hosts?.length || 0} hosts · ${fmtTime(net.last_scan)}`;
+      els.scanBtn.disabled = false;
+      els.scanBtn.textContent = "Re-scan home network";
+    } else if (net.source === "graylog") {
+      els.netHint.textContent = `from Graylog · ${net.hosts?.length || 0} hosts`;
+      els.scanBtn.disabled = false;
+      els.scanBtn.textContent = "Scan home network";
+    } else if (net.source === "demo") {
+      els.netHint.textContent = "DEMO LAN (not your network) — click Scan";
+      els.scanBtn.disabled = false;
+      els.scanBtn.textContent = "Scan home network";
+    } else if (status === "error") {
+      els.netHint.textContent = net.scan_error || "scan failed";
+      els.scanBtn.disabled = false;
+      els.scanBtn.textContent = "Retry scan";
+    } else {
+      els.netHint.textContent = "not scanned yet";
+      els.scanBtn.disabled = false;
+      els.scanBtn.textContent = "Scan home network";
+    }
   }
 
   function formatUptime(seconds) {
@@ -224,6 +277,39 @@
     const s = seconds % 60;
     return `${h}h ${m}m ${s}s`;
   }
+
+  async function triggerScan() {
+    if (scanning) return;
+    scanning = true;
+    els.scanBtn.disabled = true;
+    els.scanBtn.textContent = "Scanning…";
+    els.netHint.textContent = "scanning LAN…";
+    try {
+      const res = await fetch("/api/network/scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ with_ports: true, with_flows: true }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        els.netHint.textContent = body.detail || "scan failed";
+      } else {
+        els.netHint.textContent = `real scan · ${body.hosts || 0} hosts`;
+        const snap = await fetch("/api/snapshot").then((r) => r.json());
+        applySnapshot(snap);
+      }
+    } catch (err) {
+      els.netHint.textContent = String(err?.message || err);
+    } finally {
+      scanning = false;
+      els.scanBtn.disabled = false;
+      if (!els.scanBtn.textContent.includes("hosts")) {
+        els.scanBtn.textContent = "Re-scan home network";
+      }
+    }
+  }
+
+  els.scanBtn.addEventListener("click", triggerScan);
 
   function connectSSE() {
     const es = new EventSource("/api/stream");
@@ -242,7 +328,6 @@
     };
   }
 
-  // First paint via snapshot, then SSE
   fetch("/api/snapshot")
     .then((r) => r.json())
     .then(applySnapshot)

@@ -37,6 +37,8 @@ def test_files():
         "scripts/ubuntu/generate-secrets.sh",
         "scripts/kali/generate-lab-events.sh",
         "scripts/kali/generate-home-traffic.sh",
+        "scripts/kali/scan-home-network.sh",
+        "scripts/lib/home_network_scan.py",
         "dashboard/app.py",
         "dashboard/static/index.html",
     ]
@@ -213,6 +215,33 @@ def test_home_traffic_script():
     check("alert-catalog has home network alerts", len(home_alerts) >= 2, str(len(home_alerts)))
 
 
+def test_home_network_scanner():
+    scanner = ROOT / "scripts/lib/home_network_scan.py"
+    wrapper = ROOT / "scripts/kali/scan-home-network.sh"
+    text = scanner.read_text()
+    check("scanner defines scan_home_network", "def scan_home_network" in text)
+    check("scanner emits HOST_DISC", "HOST_DISC" in text)
+    check("scanner executable wrapper", os.access(wrapper, os.X_OK))
+    proc = subprocess.run(
+        [sys.executable, str(scanner), "--no-ports", "--no-flows", "--json"],
+        capture_output=True,
+        text=True,
+        timeout=60,
+    )
+    check("scanner exit 0", proc.returncode == 0, proc.stderr[:300])
+    try:
+        payload = json.loads(proc.stdout)
+    except json.JSONDecodeError:
+        payload = {}
+    check("scanner returns hosts", isinstance(payload.get("hosts"), list) and len(payload.get("hosts") or []) >= 1)
+    check("scanner reports subnet", bool((payload.get("subnet") or {}).get("cidr")))
+    html = (ROOT / "dashboard/static/index.html").read_text()
+    check("dashboard has scan button", "Scan home network" in html)
+    app_src = (ROOT / "dashboard/app.py").read_text()
+    check("dashboard has scan API", '/api/network/scan' in app_src)
+    check("dashboard defaults without fake LAN", "ALLOW_DEMO_NETWORK" in app_src)
+
+
 def test_home_net_parser():
     import re
 
@@ -243,8 +272,10 @@ def test_home_net_parser():
     check("parser extracts device", bool(match) and match.group("device") == "iphone-aj")
     html = (ROOT / "dashboard/static/index.html").read_text()
     check("dashboard has home network section", "Home network traffic" in html)
+    check("dashboard has scan button markup", "id=\"scanBtn\"" in html)
     js = (ROOT / "dashboard/static/assets/app.js").read_text()
     check("dashboard JS renders flows", "renderFlows" in js)
+    check("dashboard JS triggers scan", "api/network/scan" in js)
 
 
 def test_no_third_party_attribution():
@@ -272,6 +303,7 @@ def main():
     test_bootstrap_against_mock()
     test_lab_events_script()
     test_home_traffic_script()
+    test_home_network_scanner()
     test_home_net_parser()
     test_no_third_party_attribution()
     print(f"\n{PASS} passed, {FAIL} failed")
