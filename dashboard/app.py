@@ -429,7 +429,21 @@ def demo_network_burst() -> list[dict[str, Any]]:
             "direction": direction,
         }
         sev = classify_flow_severity(flow)
-        produced.append(_push_flow(**flow, origin="demo", severity=sev))
+        produced.append(
+            _push_flow(
+                src=flow["src"],
+                dst=flow["dst"],
+                proto=flow["proto"],
+                sport=flow["sport"],
+                dport=flow["dport"],
+                nbytes=flow["bytes"],
+                device=flow["device"],
+                dns=flow["dns"],
+                direction=flow["direction"],
+                origin="demo",
+                severity=sev,
+            )
+        )
     return produced
 
 
