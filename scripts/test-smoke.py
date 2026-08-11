@@ -36,6 +36,9 @@ def test_files():
         "scripts/ubuntu/bootstrap_graylog.py",
         "scripts/ubuntu/generate-secrets.sh",
         "scripts/kali/generate-lab-events.sh",
+        "scripts/kali/generate-home-traffic.sh",
+        "dashboard/app.py",
+        "dashboard/static/index.html",
     ]
     for rel in required:
         check(f"exists:{rel}", (ROOT / rel).is_file())
@@ -184,7 +187,7 @@ def test_bootstrap_against_mock():
     check("bootstrap created beats input", "AJSIEM Beats" in titles)
     check(
         "bootstrap created severity streams",
-        {"AJSIEM Low", "AJSIEM Medium", "AJSIEM High"} <= streams,
+        {"AJSIEM Low", "AJSIEM Medium", "AJSIEM High", "AJSIEM Home Network"} <= streams,
         str(streams),
     )
 
@@ -197,6 +200,51 @@ def test_lab_events_script():
     check("lab events has MEDIUM marker", "MEDIUM:" in text)
     check("lab events has HIGH marker", "HIGH:" in text)
     check("lab events executable", os.access(script, os.X_OK))
+
+
+def test_home_traffic_script():
+    script = ROOT / "scripts/kali/generate-home-traffic.sh"
+    text = script.read_text()
+    check("home traffic has HOME_NET marker", "HOME_NET src=" in text)
+    check("home traffic has device field", "device=" in text)
+    check("home traffic executable", os.access(script, os.X_OK))
+    catalog = json.loads((ROOT / "configs/graylog/alerts/alert-catalog.json").read_text())
+    home_alerts = [a for a in catalog.get("alerts", []) if a.get("stream") == "AJSIEM Home Network"]
+    check("alert-catalog has home network alerts", len(home_alerts) >= 2, str(len(home_alerts)))
+
+
+def test_home_net_parser():
+    import re
+
+    # Keep offline: assert the dashboard embeds a HOME_NET parser without importing FastAPI deps.
+    app_src = (ROOT / "dashboard/app.py").read_text()
+    check("dashboard defines FLOW_RE", "FLOW_RE = re.compile" in app_src)
+    check("dashboard defines parse_home_net_message", "def parse_home_net_message" in app_src)
+    flow_re = re.compile(
+        r"HOME_NET\s+"
+        r"src=(?P<src>\S+)\s+"
+        r"dst=(?P<dst>\S+)\s+"
+        r"proto=(?P<proto>\S+)\s+"
+        r"sport=(?P<sport>\d+)\s+"
+        r"dport=(?P<dport>\d+)\s+"
+        r"bytes=(?P<bytes>\d+)\s+"
+        r"device=(?P<device>\S+)"
+        r"(?:\s+dns=(?P<dns>\S+))?"
+        r"(?:\s+dir=(?P<dir>\S+))?",
+        re.IGNORECASE,
+    )
+    sample = (
+        "HOME_NET src=192.168.1.24 dst=8.8.8.8 proto=UDP sport=53122 "
+        "dport=53 bytes=128 device=iphone-aj dns=dns.google dir=out"
+    )
+    match = flow_re.search(sample)
+    check("parser extracts src", bool(match) and match.group("src") == "192.168.1.24")
+    check("parser extracts dport", bool(match) and match.group("dport") == "53")
+    check("parser extracts device", bool(match) and match.group("device") == "iphone-aj")
+    html = (ROOT / "dashboard/static/index.html").read_text()
+    check("dashboard has home network section", "Home network traffic" in html)
+    js = (ROOT / "dashboard/static/assets/app.js").read_text()
+    check("dashboard JS renders flows", "renderFlows" in js)
 
 
 def test_no_third_party_attribution():
@@ -223,6 +271,8 @@ def main():
     test_generate_secrets()
     test_bootstrap_against_mock()
     test_lab_events_script()
+    test_home_traffic_script()
+    test_home_net_parser()
     test_no_third_party_attribution()
     print(f"\n{PASS} passed, {FAIL} failed")
     return 1 if FAIL else 0

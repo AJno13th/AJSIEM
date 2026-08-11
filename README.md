@@ -31,15 +31,16 @@ flowchart LR
 
 ## Live dashboard
 
-AJSIEM ships a live operations frontend that streams severity counts, collector health, and a scrolling event feed.
+AJSIEM ships a live operations frontend that streams severity counts, **home network traffic**, collector health, and a scrolling event feed.
 
 ```bash
 ./scripts/ubuntu/start-dashboard.sh
 # open http://127.0.0.1:8088
 ```
 
-- **Demo mode** (default when Graylog is offline): continuously generates Kali-style low / medium / high events so the UI stays alive.
-- **Live mode**: when Graylog is reachable, the dashboard pulls recent messages and flips the badge to `LIVE GRAYLOG`.
+- **Demo mode** (default when Graylog is offline): continuously generates Kali-style low / medium / high events **and home LAN flows** so the UI stays alive.
+- **Live mode**: when Graylog is reachable, the dashboard pulls recent messages (including `HOME_NET` flows) and flips the badge to `LIVE GRAYLOG`.
+- **Home network panel**: live flows, top talkers, protocol mix, and byte totals for the `192.168.1.0/24` lab segment.
 
 ## Quick start (Docker on Ubuntu)
 
@@ -55,6 +56,7 @@ On Kali (same bridged network):
 ```bash
 sudo ./scripts/kali/setup-log-forwarding.sh <ubuntu-ip>
 ./scripts/kali/generate-lab-events.sh
+./scripts/kali/generate-home-traffic.sh   # home LAN flow visibility
 ```
 
 Full steps: [docs/lab-guide.md](docs/lab-guide.md)
@@ -81,7 +83,8 @@ AJSIEM/
 |-------|--------|
 | **Low** | Baseline successful auth / routine sudo |
 | **Medium** | Brute-force style failures, new accounts |
-| **High** | Root login, scan indicators, priv-esc storms |
+| **High** | Root login, scan indicators, priv-esc storms, SSH egress from home LAN |
+| **Home Network** | DNS baseline, SMB/SSH egress from LAN devices (`HOME_NET` flows) |
 
 See `configs/graylog/alerts/alert-catalog.json`.
 

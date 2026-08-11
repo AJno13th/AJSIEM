@@ -179,10 +179,19 @@ def main():
             {"field": "message", "type": 6, "inverted": False, "value": "HIGH:"},
         ],
     )
+    ensure_stream(
+        "AJSIEM Home Network",
+        "Home LAN flow telemetry (HOME_NET structured logs)",
+        [
+            {"field": "message", "type": 6, "inverted": False, "value": "HOME_NET"},
+            {"field": "message", "type": 6, "inverted": False, "value": "homenet"},
+        ],
+    )
 
     print("[+] Bootstrap complete.")
     print(f"    UI: {BASE}")
     print("    Create Event Definitions from configs/graylog/alerts/alert-catalog.json")
+    print("    Home network: emit flows with scripts/kali/generate-home-traffic.sh")
     return 0
 
 

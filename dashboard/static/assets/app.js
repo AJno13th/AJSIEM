@@ -15,6 +15,14 @@
     inputs: $("inputs"),
     uptime: $("uptime"),
     spark: $("spark"),
+    netDevices: $("netDevices"),
+    netFlows: $("netFlows"),
+    netBytesOut: $("netBytesOut"),
+    netBytesIn: $("netBytesIn"),
+    protoBars: $("protoBars"),
+    flowBody: $("flowBody"),
+    talkers: $("talkers"),
+    netHint: $("netHint"),
   };
 
   let seen = new Set();
@@ -26,6 +34,14 @@
     } catch {
       return "--:--:--Z";
     }
+  }
+
+  function fmtBytes(n) {
+    const v = Number(n) || 0;
+    if (v < 1024) return `${v} B`;
+    if (v < 1024 ** 2) return `${(v / 1024).toFixed(1)} KB`;
+    if (v < 1024 ** 3) return `${(v / 1024 ** 2).toFixed(1)} MB`;
+    return `${(v / 1024 ** 3).toFixed(2)} GB`;
   }
 
   function renderSpark(points) {
@@ -83,11 +99,14 @@
     const total = Math.max(1, counts.total || 1);
     els.streams.innerHTML = streams
       .map((s) => {
-        const pct = Math.min(100, Math.round(((s.matches || counts[s.severity] || 0) / total) * 100));
+        const matches = s.matches || counts[s.severity] || 0;
+        const pct = s.severity === "network"
+          ? Math.min(100, Math.round((matches / Math.max(1, matches + (counts.total || 0))) * 100) || (matches ? 40 : 0))
+          : Math.min(100, Math.round((matches / total) * 100));
         return `<li class="stream-row">
           <span>${escapeHtml(s.name)}</span>
           <div class="bar ${s.severity}"><span style="width:${pct}%"></span></div>
-          <strong>${s.matches || counts[s.severity] || 0}</strong>
+          <strong>${matches}</strong>
         </li>`;
       })
       .join("");
@@ -100,6 +119,64 @@
         return `<li class="input-row">
           <span>${escapeHtml(i.name)}${i.port ? ` :${i.port}` : ""}</span>
           <span class="status-dot ${st}" title="${st}"></span>
+        </li>`;
+      })
+      .join("");
+  }
+
+  function renderProtocols(protocols) {
+    const entries = Object.entries(protocols || {});
+    const sum = Math.max(1, entries.reduce((a, [, v]) => a + (v || 0), 0));
+    els.protoBars.innerHTML = entries
+      .map(([name, value]) => {
+        const pct = Math.round(((value || 0) / sum) * 100);
+        return `<div class="proto-row">
+          <span>${escapeHtml(name)}</span>
+          <div class="bar network"><span style="width:${pct}%"></span></div>
+          <strong>${pct}%</strong>
+        </div>`;
+      })
+      .join("");
+  }
+
+  function renderFlows(flows) {
+    if (!flows.length) {
+      els.flowBody.innerHTML = `<tr><td colspan="7" class="empty">No home network flows yet — run generate-home-traffic.sh or use demo mode</td></tr>`;
+      return;
+    }
+    els.flowBody.innerHTML = flows
+      .slice(0, 24)
+      .map((f) => {
+        const arrow = `${escapeHtml(f.src)} → ${escapeHtml(f.dst)}`;
+        return `<tr data-sev="${escapeHtml(f.severity || "low")}" class="flow-row">
+          <td>${fmtTime(f.ts)}</td>
+          <td>${escapeHtml(f.device || "—")}</td>
+          <td class="mono-tight">${arrow}</td>
+          <td>${escapeHtml(f.proto || "")}</td>
+          <td>${escapeHtml(String(f.dport ?? ""))}</td>
+          <td>${fmtBytes(f.bytes)}</td>
+          <td>${escapeHtml(f.dns || "—")}</td>
+        </tr>`;
+      })
+      .join("");
+  }
+
+  function renderTalkers(talkers) {
+    if (!talkers.length) {
+      els.talkers.innerHTML = `<li class="empty">No talkers yet</li>`;
+      return;
+    }
+    const max = Math.max(1, ...talkers.map((t) => t.bytes || 0));
+    els.talkers.innerHTML = talkers
+      .map((t) => {
+        const pct = Math.min(100, Math.round(((t.bytes || 0) / max) * 100));
+        return `<li class="talker-row">
+          <div class="talker-meta">
+            <strong>${escapeHtml(t.name)}</strong>
+            <span>${escapeHtml(t.ip)} · ${escapeHtml(t.role || "host")} · ${t.flows || 0} flows</span>
+          </div>
+          <div class="bar network"><span style="width:${pct}%"></span></div>
+          <div class="talker-bytes">${fmtBytes(t.bytes)}</div>
         </li>`;
       })
       .join("");
@@ -127,6 +204,18 @@
     renderStreams(data.streams || [], data.counts || {});
     renderInputs(data.inputs || []);
     renderSpark(data.throughput || []);
+
+    const net = data.network || {};
+    els.netDevices.textContent = net.active_devices ?? 0;
+    els.netFlows.textContent = net.flows_seen ?? 0;
+    els.netBytesOut.textContent = fmtBytes(net.bytes_out);
+    els.netBytesIn.textContent = fmtBytes(net.bytes_in);
+    renderProtocols(net.protocols || {});
+    renderFlows(net.flows || []);
+    renderTalkers(net.top_talkers || []);
+    els.netHint.textContent = mode === "live"
+      ? `${net.flows?.length || 0} recent flows · live`
+      : `${net.flows?.length || 0} recent flows · demo LAN`;
   }
 
   function formatUptime(seconds) {
@@ -147,6 +236,7 @@
     };
     es.onerror = () => {
       els.feedHint.textContent = "reconnecting…";
+      els.netHint.textContent = "reconnecting…";
       es.close();
       setTimeout(connectSSE, 2000);
     };
@@ -158,6 +248,7 @@
     .then(applySnapshot)
     .catch(() => {
       els.feedHint.textContent = "waiting for API…";
+      els.netHint.textContent = "waiting for API…";
     })
     .finally(connectSSE);
 })();

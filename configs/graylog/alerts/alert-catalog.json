@@ -71,6 +71,36 @@
       "query": "sudo AND \"incorrect password attempts\"",
       "condition": "more than 0 messages in 5 minutes",
       "response": "Lock account; inspect processes; check for persistence."
+    },
+    {
+      "id": "low-home-dns",
+      "title": "[LOW] Home LAN DNS activity",
+      "severity": "low",
+      "stream": "AJSIEM Home Network",
+      "description": "Baseline DNS queries from home devices — useful for inventory and egress mapping.",
+      "query": "HOME_NET AND dport=53",
+      "condition": "more than 0 messages in 15 minutes",
+      "response": "Confirm expected resolvers (router / 1.1.1.1 / 8.8.8.8); note new device names."
+    },
+    {
+      "id": "med-home-smb-egress",
+      "title": "[MEDIUM] SMB egress from home lab host",
+      "severity": "medium",
+      "stream": "AJSIEM Home Network",
+      "description": "Outbound SMB (445) from the home segment often indicates lateral movement probes.",
+      "query": "HOME_NET AND dport=445 AND NOT dst:192.168.*",
+      "condition": "more than 0 messages in 10 minutes",
+      "response": "Identify source device; block 445 egress at the router if unexpected."
+    },
+    {
+      "id": "high-home-ssh-egress",
+      "title": "[HIGH] SSH egress to external host from home LAN",
+      "severity": "high",
+      "stream": "AJSIEM Home Network",
+      "description": "Direct SSH to non-LAN destinations from a home device can indicate C2 or offensive tooling.",
+      "query": "HOME_NET AND dport=22 AND NOT dst:192.168.*",
+      "condition": "more than 0 messages in 5 minutes",
+      "response": "Isolate the source device; review process list and recent scans; capture PCAP if investigating."
     }
   ]
 }

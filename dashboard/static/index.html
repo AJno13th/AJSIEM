@@ -15,7 +15,7 @@
   <header class="top">
     <div class="brand-block">
       <div class="brand">AJSIEM</div>
-      <p class="tagline">Live security operations · Kali → Ubuntu → OpenSearch → Graylog</p>
+      <p class="tagline">Live security operations · Kali → Ubuntu → OpenSearch → Graylog · home network traffic</p>
     </div>
     <div class="top-meta">
       <div class="mode-pill" id="modePill" data-mode="demo">
@@ -50,6 +50,65 @@
       </div>
     </section>
 
+    <section class="home-net" aria-labelledby="homeNetTitle">
+      <header class="panel-head home-net-head">
+        <div>
+          <h2 id="homeNetTitle">Home network traffic</h2>
+          <p class="section-sub">LAN devices, outbound flows, and protocol mix from your home lab segment</p>
+        </div>
+        <span class="hint" id="netHint">waiting…</span>
+      </header>
+
+      <div class="net-metrics">
+        <div class="net-stat">
+          <div class="metric-label">Active devices</div>
+          <div class="metric-value sm" id="netDevices">0</div>
+        </div>
+        <div class="net-stat">
+          <div class="metric-label">Flows seen</div>
+          <div class="metric-value sm" id="netFlows">0</div>
+        </div>
+        <div class="net-stat">
+          <div class="metric-label">Bytes out</div>
+          <div class="metric-value sm" id="netBytesOut">0</div>
+        </div>
+        <div class="net-stat">
+          <div class="metric-label">Bytes in</div>
+          <div class="metric-value sm" id="netBytesIn">0</div>
+        </div>
+        <div class="net-stat proto-stat">
+          <div class="metric-label">Protocol mix</div>
+          <div class="proto-bars" id="protoBars"></div>
+        </div>
+      </div>
+
+      <div class="net-grid">
+        <div class="net-block">
+          <h3>Live flows</h3>
+          <div class="flow-table-wrap">
+            <table class="flow-table" aria-label="Home network flows">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Device</th>
+                  <th>Src → Dst</th>
+                  <th>Proto</th>
+                  <th>Port</th>
+                  <th>Bytes</th>
+                  <th>DNS / host</th>
+                </tr>
+              </thead>
+              <tbody id="flowBody"></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="net-block talkers">
+          <h3>Top talkers</h3>
+          <ul class="talker-list" id="talkers"></ul>
+        </div>
+      </div>
+    </section>
+
     <section class="grid">
       <article class="panel feed-panel">
         <header class="panel-head">
@@ -79,10 +138,10 @@
             <h2>Pipeline</h2>
           </header>
           <ol class="pipeline">
-            <li>Kali ships auth/syslog</li>
+            <li>Kali / LAN ships auth + HOME_NET flows</li>
             <li>Graylog inputs on 1514 / 12201 / 5044</li>
-            <li>OpenSearch indexes</li>
-            <li>Streams route Low → High</li>
+            <li>OpenSearch indexes host &amp; network telemetry</li>
+            <li>Streams route Low → High + Home Network</li>
           </ol>
           <p class="footnote" id="uptime">uptime —</p>
         </article>
